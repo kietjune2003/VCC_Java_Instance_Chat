@@ -1,0 +1,195 @@
+{
+  "info": {
+    "name": "ChatApp - Full API Test (MySQL)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Login - Alice",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"alice\",\n  \"password\": \"e2c569be17396eca2a2e3c11578123ed\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/login",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "2. Get Friends - Alice",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{accessTokenAlice}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/friends",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "friends"
+          ]
+        }
+      }
+    },
+    {
+      "name": "3. Send Message - Alice to Bob (Text)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{accessTokenAlice}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "username",
+              "value": "bob",
+              "type": "text"
+            },
+            {
+              "key": "message",
+              "value": "Hello Bob!",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/send",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "send"
+          ]
+        }
+      }
+    },
+    {
+      "name": "4. Send Message - Alice to Bob (File)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{accessTokenAlice}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "username",
+              "value": "bob",
+              "type": "text"
+            },
+            {
+              "key": "message",
+              "type": "file",
+              "src": ""
+            }
+          ]
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/send",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "send"
+          ]
+        }
+      }
+    },
+    {
+      "name": "5. Receive Messages - Bob",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{accessTokenBob}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/messages",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "messages"
+          ]
+        }
+      }
+    },
+    {
+      "name": "6. Download File - Bob",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "{{accessTokenBob}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/file/{{filename}}",
+          "protocol": "http",
+          "host": [
+            "localhost:8080"
+          ],
+          "path": [
+            "api",
+            "file",
+            "{{filename}}"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "accessTokenAlice",
+      "value": ""
+    },
+    {
+      "key": "accessTokenBob",
+      "value": ""
+    },
+    {
+      "key": "filename",
+      "value": ""
+    }
+  ]
+}
