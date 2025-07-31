@@ -121,10 +121,10 @@ public class MessageServiceImpl implements MessageService {
             pending.forEach(m -> m.setDelivered(true));
             messageRepository.saveAll(pending);
             log.info("Returned {} pending message(s) to '{}'", pending.size(), username);
-            return toResponse(pending);
+            return toResponse(pending); // Trả tin nhắn đang chờ ngay lập tức
         }
 
-        // Chờ tin nhắn mới tối đa 10s
+        // Nếu không có tin nhắn chờ, chờ tối đa 10s để lấy tin nhắn mới
         BlockingQueue<Message> queue = new ArrayBlockingQueue<>(1);
         onlineUserServiceImpl.waitForMessages(username, queue);
 
@@ -135,12 +135,13 @@ public class MessageServiceImpl implements MessageService {
             newMessage.setDelivered(true);
             messageRepository.save(newMessage);
             log.info("Delivered real-time message to '{}'", username);
-            return toResponse(List.of(newMessage));
+            return toResponse(List.of(newMessage)); // Trả tin nhắn mới
         }
 
         log.info("No new message for '{}'", username);
-        return Collections.emptyList();
+        return Collections.emptyList(); // Không có tin nhắn mới trong 10 giây
     }
+
 
     /**
      * Trả về file nếu user có quyền
@@ -173,13 +174,33 @@ public class MessageServiceImpl implements MessageService {
      */
     private List<Map<String, Object>> toResponse(List<Message> messages) {
         List<Map<String, Object>> result = new ArrayList<>();
+
+        // Nhóm tin nhắn theo người gửi
+        Map<String, List<Map<String, Object>>> messagesBySender = new HashMap<>();
+
         for (Message m : messages) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("time", m.getTimestamp().toString());
-            item.put("sender", m.getSender());
-            item.put("message", m.getContent()); // Link hoặc text
-            result.add(item);
+            // Tạo map cho mỗi tin nhắn kèm thời gian và nội dung
+            Map<String, Object> messageDetail = new HashMap<>();
+            messageDetail.put("time", m.getTimestamp().toString());  // Thời gian tin nhắn
+            messageDetail.put("message", m.getContent()); // Nội dung tin nhắn
+
+            // Nhóm tin nhắn theo người gửi
+            messagesBySender
+                    .computeIfAbsent(m.getSender(), k -> new ArrayList<>())  // Tạo danh sách cho người gửi nếu chưa có
+                    .add(messageDetail);
         }
+
+        // Duyệt qua các nhóm người gửi và tạo kết quả trả về
+        for (Map.Entry<String, List<Map<String, Object>>> entry : messagesBySender.entrySet()) {
+            Map<String, Object> senderDetail = new HashMap<>();
+            senderDetail.put("sender", entry.getKey()); // Người gửi
+            senderDetail.put("messages", entry.getValue()); // Danh sách tin nhắn của người gửi
+
+            result.add(senderDetail);
+        }
+
         return result;
     }
+
+
 }
