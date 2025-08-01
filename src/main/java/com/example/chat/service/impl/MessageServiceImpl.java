@@ -36,10 +36,10 @@ public class MessageServiceImpl implements MessageService {
     private final String storagePath = "storage";
 
     /**
-     * Trích xuất username từ Authorization header
+     * Trích xuất username từ Authorization header và kiểm tra token với userAgent
      */
-    private String extractUsername(String authHeader) {
-        return jwtUtil.validateToken(authHeader.replace("Bearer ", "").trim());
+    private String extractUsername(String authHeader, String userAgent) {
+        return jwtUtil.validateToken(authHeader.replace("Bearer ", "").trim(), userAgent); // Thêm userAgent vào khi validate token
     }
 
     /**
@@ -48,12 +48,13 @@ public class MessageServiceImpl implements MessageService {
      * @param username người nhận
      * @param message nội dung văn bản (nếu có)
      * @param file file đính kèm (nếu có)
+     * @param userAgent Thông tin User-Agent từ header yêu cầu
      * @return Map kết quả status
      * @throws IOException lỗi xử lý file
      */
     @Override
-    public Map<String, Object> sendMessage(String authHeader, String username, String message, MultipartFile file) throws IOException {
-        String sender = extractUsername(authHeader);
+    public Map<String, Object> sendMessage(String authHeader, String username, String message, MultipartFile file, String userAgent) throws IOException {
+        String sender = extractUsername(authHeader, userAgent); // Kiểm tra token với userAgent
         log.info("Sending message from '{}' to '{}'", sender, username);
 
         Optional<User> optionalReceiver = userRepository.findById(username);
@@ -109,10 +110,14 @@ public class MessageServiceImpl implements MessageService {
 
     /**
      * Trả về tin nhắn chờ bằng long polling tối đa 10s
+     * @param authHeader access token
+     * @param userAgent Thông tin User-Agent từ header yêu cầu
+     * @return danh sách tin nhắn
+     * @throws InterruptedException nếu polling bị gián đoạn
      */
     @Override
-    public List<Map<String, Object>> getMessages(String authHeader) throws InterruptedException {
-        String username = extractUsername(authHeader);
+    public List<Map<String, Object>> getMessages(String authHeader, String userAgent) throws InterruptedException {
+        String username = extractUsername(authHeader, userAgent); // Kiểm tra token với userAgent
         log.info("User '{}' is polling for new messages", username);
 
         // Trả ngay nếu có message chưa nhận
@@ -145,10 +150,15 @@ public class MessageServiceImpl implements MessageService {
 
     /**
      * Trả về file nếu user có quyền
+     * @param authHeader access token
+     * @param filename tên file cần lấy
+     * @param userAgent Thông tin User-Agent từ header yêu cầu
+     * @return file nếu hợp lệ
+     * @throws IOException lỗi xử lý file
      */
     @Override
-    public Resource getFile(String authHeader, String filename) throws IOException {
-        String username = extractUsername(authHeader);
+    public Resource getFile(String authHeader, String filename, String userAgent) throws IOException {
+        String username = extractUsername(authHeader, userAgent); // Kiểm tra token với userAgent
         log.info("User '{}' requests file '{}'", username, filename);
 
         List<Message> messages = messageRepository.findByReceiver(username);
@@ -201,6 +211,4 @@ public class MessageServiceImpl implements MessageService {
 
         return result;
     }
-
-
 }

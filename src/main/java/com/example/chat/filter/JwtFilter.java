@@ -33,12 +33,16 @@ public class JwtFilter implements Filter {
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7); // Cắt bỏ "Bearer "
 
-            try {
-                // ✅ Kiểm tra token access có hợp lệ không
-                String username = jwtUtil.validateToken(token);
-                log.debug("JWT validated successfully for user '{}'", username);
+            // Lấy thông tin User-Agent từ header request
+            String userAgent = httpRequest.getHeader("User-Agent");
 
-                chain.doFilter(request, response); // Cho phép tiếp tục
+            try {
+                // ✅ Kiểm tra token access có hợp lệ không và kiểm tra userAgent
+                String username = jwtUtil.validateToken(token, userAgent);
+                log.debug("JWT validated successfully for user '{}' with matching userAgent", username);
+
+                // Chuyển tiếp request nếu token hợp lệ
+                chain.doFilter(request, response);
                 return;
 
             } catch (ExpiredJwtException e) {
@@ -46,6 +50,7 @@ public class JwtFilter implements Filter {
                 String username = e.getClaims().getSubject();
                 log.warn("Access token expired for user '{}'", username);
 
+                // Tìm người dùng trong cơ sở dữ liệu
                 User user = userRepository.findById(username).orElse(null);
 
                 // 🔁 Kiểm tra và dùng refresh token nếu còn hạn
@@ -53,14 +58,18 @@ public class JwtFilter implements Filter {
                     boolean refreshTokenValid = !jwtUtil.isTokenExpired(user.getRefreshToken());
 
                     if (refreshTokenValid) {
-                        String newAccessToken = jwtUtil.generateAccessToken(username);
+                        // Tạo lại access token mới từ refresh token
+                        String newAccessToken = jwtUtil.generateAccessToken(username, userAgent);
                         user.setAccessToken(newAccessToken);
                         userRepository.save(user);
 
                         log.info("New access token issued via refresh token for '{}'", username);
 
+                        // Đưa token mới vào header response
                         HttpServletResponse httpResponse = (HttpServletResponse) response;
                         httpResponse.setHeader("New-Access-Token", newAccessToken);
+
+                        // Tiếp tục filter chain với token mới
                         chain.doFilter(request, response);
                         return;
                     } else {
@@ -70,6 +79,7 @@ public class JwtFilter implements Filter {
                     log.warn("User '{}' not found or no refresh token", username);
                 }
 
+                // Trả về lỗi nếu refresh token đã hết hạn
                 ((HttpServletResponse) response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Refresh token expired");
                 return;
 

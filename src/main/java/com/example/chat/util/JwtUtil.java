@@ -31,30 +31,32 @@ public class JwtUtil {
     /**
      * 👉 Sinh access token có hiệu lực 10 phút
      */
-    public String generateAccessToken(String username) {
+    public String generateAccessToken(String username, String userAgent) {
         String token = Jwts.builder()
                 .setSubject(username)
+                .claim("userAgent", userAgent)  // Thêm userAgent vào claims
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRATION))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 
-        log.debug("Generated access token for user '{}'", username);
+        log.debug("Generated access token for user '{}' with userAgent '{}'", username, userAgent);
         return token;
     }
 
     /**
      * 👉 Sinh refresh token có hiệu lực 10 ngày
      */
-    public String generateRefreshToken(String username) {
+    public String generateRefreshToken(String username, String userAgent) {
         String token = Jwts.builder()
                 .setSubject(username)
+                .claim("userAgent", userAgent)  // Thêm userAgent vào claims
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + REFRESH_TOKEN_EXPIRATION))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 
-        log.debug("Generated refresh token for user '{}'", username);
+        log.debug("Generated refresh token for user '{}' with userAgent '{}'", username, userAgent);
         return token;
     }
 
@@ -62,14 +64,22 @@ public class JwtUtil {
      * ✅ Kiểm tra token và trả về username (subject)
      * @throws JwtException nếu token không hợp lệ hoặc hết hạn
      */
-    public String validateToken(String token) {
+    public String validateToken(String token, String userAgent) {
         try {
-            String username = Jwts.parserBuilder()
+            Claims claims = Jwts.parserBuilder()
                     .setSigningKey(key)
                     .build()
                     .parseClaimsJws(token)
-                    .getBody()
-                    .getSubject();
+                    .getBody();
+
+            String username = claims.getSubject();
+            String tokenUserAgent = claims.get("userAgent", String.class);  // Lấy userAgent từ claims
+
+            // So sánh userAgent từ token với userAgent hiện tại
+            if (!userAgent.equals(tokenUserAgent)) {
+                log.error("User agent mismatch for token: expected '{}', got '{}'", tokenUserAgent, userAgent);
+                throw new JwtException("User agent mismatch");
+            }
 
             log.debug("Token validated successfully for user '{}'", username);
             return username;

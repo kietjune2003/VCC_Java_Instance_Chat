@@ -24,16 +24,17 @@ public class FriendServiceImpl implements FriendService {
     /**
      * ✅ Trả về danh sách bạn bè của người dùng từ access token
      * @param authHeader Header chứa access token dạng Bearer ...
+     * @param userAgent Thông tin User-Agent từ header yêu cầu
      * @return List<String> danh sách username của bạn bè
      * @throws Exception nếu user không tồn tại hoặc dữ liệu JSON lỗi
      */
     @Override
-    public List<String> getFriends(String authHeader) throws Exception {
+    public List<String> getFriends(String authHeader, String userAgent) throws Exception {
         // Tách token từ header "Bearer <token>"
         String token = authHeader.replace("Bearer", "").trim();
 
-        // ✅ Giải mã và kiểm tra token
-        String username = jwtUtil.validateToken(token);
+        // ✅ Giải mã và kiểm tra token với userAgent
+        String username = jwtUtil.validateToken(token, userAgent); // Kiểm tra token và userAgent
         log.info("Fetching friend list for user: {}", username);
 
         // ✅ Truy vấn thông tin người dùng từ DB

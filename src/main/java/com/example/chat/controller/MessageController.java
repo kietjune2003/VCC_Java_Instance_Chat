@@ -23,18 +23,25 @@ public class MessageController {
 
     /**
      * API gửi tin nhắn (text hoặc file)
+     * @param authHeader Header chứa Authorization token
+     * @param username Tên người dùng gửi tin nhắn
+     * @param message Nội dung tin nhắn (nếu có)
+     * @param file Tệp đính kèm (nếu có)
+     * @param userAgent Thông tin User-Agent từ header yêu cầu
+     * @return ResponseEntity kết quả gửi tin nhắn
      */
     @PostMapping("/send")
     public ResponseEntity<?> sendMessage(
             @RequestHeader("Authorization") String authHeader,
             @RequestPart("username") String username,
             @RequestPart(value = "message", required = false) String message,
-            @RequestPart(value = "file", required = false) MultipartFile file
+            @RequestPart(value = "file", required = false) MultipartFile file,
+            @RequestHeader("User-Agent") String userAgent // Lấy userAgent từ header yêu cầu
     ) {
         try {
             log.info("Received message send request from '{}'", username); // Log input
 
-            Map<String, Object> result = messageService.sendMessage(authHeader, username, message, file);
+            Map<String, Object> result = messageService.sendMessage(authHeader, username, message, file, userAgent); // Truyền thêm userAgent vào service
             int status = (int) result.get("status");
 
             // Log kết quả trả về từ service
@@ -61,13 +68,19 @@ public class MessageController {
 
     /**
      * API lấy tin nhắn mới (long polling 10s)
+     * @param authHeader Header chứa Authorization token
+     * @param userAgent Thông tin User-Agent từ header yêu cầu
+     * @return ResponseEntity danh sách tin nhắn
      */
     @GetMapping("/messages")
-    public ResponseEntity<?> getMessages(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<?> getMessages(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestHeader("User-Agent") String userAgent // Lấy userAgent từ header yêu cầu
+    ) {
         try {
             log.info("Polling for new messages");
 
-            List<Map<String, Object>> messages = messageService.getMessages(authHeader);
+            List<Map<String, Object>> messages = messageService.getMessages(authHeader, userAgent); // Truyền thêm userAgent vào service
             log.debug("Returned {} message(s)", messages.size());
 
             return ResponseEntity.ok(messages);
@@ -80,16 +93,21 @@ public class MessageController {
 
     /**
      * API tải file đính kèm từ tin nhắn
+     * @param authHeader Header chứa Authorization token
+     * @param filename Tên file cần tải
+     * @param userAgent Thông tin User-Agent từ header yêu cầu
+     * @return ResponseEntity chứa file đính kèm
      */
     @GetMapping("/file/{filename}")
     public ResponseEntity<?> getFile(
             @RequestHeader("Authorization") String authHeader,
-            @PathVariable String filename
+            @PathVariable String filename,
+            @RequestHeader("User-Agent") String userAgent // Lấy userAgent từ header yêu cầu
     ) {
         try {
             log.info("User requested file: {}", filename);
 
-            Resource resource = messageService.getFile(authHeader, filename);
+            Resource resource = messageService.getFile(authHeader, filename, userAgent); // Truyền thêm userAgent vào service
             log.debug("File '{}' successfully returned", filename);
             return ResponseEntity.ok(resource);
 

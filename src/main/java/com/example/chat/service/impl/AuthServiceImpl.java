@@ -23,9 +23,12 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * ✅ Đăng nhập và sinh access token + refresh token
+     * @param username Tên đăng nhập của người dùng
+     * @param password Mật khẩu của người dùng
+     * @param userAgent Thông tin User-Agent từ header yêu cầu
      */
     @Override
-    public ResponseEntity<?> login(String username, String password) {
+    public ResponseEntity<?> login(String username, String password, String userAgent) {
         log.info("Login attempt for username: {}", username);
 
         User user = userRepository.findById(username).orElse(null);
@@ -35,9 +38,9 @@ public class AuthServiceImpl implements AuthService {
             return ResponseEntity.status(401).body("Invalid credentials");
         }
 
-        // ✅ Sinh token mới
-        String accessToken = jwtUtil.generateAccessToken(username);
-        String refreshToken = jwtUtil.generateRefreshToken(username);
+        // ✅ Sinh token mới, thêm userAgent vào trong quá trình tạo token
+        String accessToken = jwtUtil.generateAccessToken(username, userAgent);
+        String refreshToken = jwtUtil.generateRefreshToken(username, userAgent);
 
         // ✅ Lưu thông tin token và thời gian vào DB
         user.setAccessToken(accessToken);
@@ -57,14 +60,16 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * ✅ Làm mới access token bằng refresh token
+     * @param refreshToken Refresh token của người dùng
+     * @param userAgent Thông tin User-Agent từ header yêu cầu
      */
     @Override
-    public ResponseEntity<?> refreshToken(String refreshToken) {
+    public ResponseEntity<?> refreshToken(String refreshToken, String userAgent) {
         log.debug("Refresh token request received");
 
         try {
-            String username = jwtUtil.validateToken(refreshToken);
-            String newAccessToken = jwtUtil.generateAccessToken(username);
+            String username = jwtUtil.validateToken(refreshToken, userAgent); // Kiểm tra thêm userAgent
+            String newAccessToken = jwtUtil.generateAccessToken(username, userAgent); // Sinh access token mới
 
             log.info("Refresh token valid. New access token issued for user '{}'", username);
 
@@ -77,12 +82,14 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * ✅ Lấy tài nguyên protected để test token
+     * @param authHeader Header chứa Bearer token
+     * @param userAgent Thông tin User-Agent từ header yêu cầu
      */
     @Override
-    public ResponseEntity<?> getProtectedResource(String authHeader) {
+    public ResponseEntity<?> getProtectedResource(String authHeader, String userAgent) {
         String token = authHeader.replace("Bearer ", "");
 
-        String username = jwtUtil.validateToken(token);
+        String username = jwtUtil.validateToken(token, userAgent); // Kiểm tra token với userAgent
         log.debug("Access token valid. Returning protected resource for '{}'", username);
 
         return ResponseEntity.ok("Hello " + username);

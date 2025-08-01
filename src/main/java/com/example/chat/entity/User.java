@@ -19,7 +19,7 @@ public class User {
 
     @Column(columnDefinition = "TEXT")
     private String friendsJson; // JSON danh sách bạn bè
-
+    @Column(length = 512)
     private String accessToken;
     private LocalDateTime tokenCreatedAt;
     private LocalDateTime tokenExpiresAt;

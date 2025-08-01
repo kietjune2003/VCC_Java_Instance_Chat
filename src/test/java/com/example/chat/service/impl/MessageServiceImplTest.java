@@ -38,6 +38,7 @@ class MessageServiceImplTest {
     private final String VALID_TOKEN = "Bearer mocktoken";
     private final String SENDER = "alice";
     private final String RECEIVER = "bob";
+    private final String USER_AGENT = "Mozilla/5.0";
 
     @BeforeEach
     void setUp() {
@@ -59,54 +60,54 @@ class MessageServiceImplTest {
         );
     }
 
-    // ✅ Test gửi tin nhắn text thành công (người nhận không online)
+    // ✅ Test gửi tin nhắn text thành công (người nhận không online) với userAgent
     @Test
-    void testSendTextMessageSuccess() throws IOException {
+    void testSendTextMessageSuccessWithUserAgent() throws IOException {
         User receiver = createUser(RECEIVER, "[\"alice\"]");
 
-        when(jwtUtil.validateToken(anyString())).thenReturn(SENDER);
+        when(jwtUtil.validateToken(anyString(), eq(USER_AGENT))).thenReturn(SENDER); // Validate token với userAgent
         when(userRepository.findById(RECEIVER)).thenReturn(Optional.of(receiver));
         when(onlineUserService.getWaitingQueue(RECEIVER)).thenReturn(null);
 
-        Map<String, Object> result = messageService.sendMessage(VALID_TOKEN, RECEIVER, "Hello", null);
+        Map<String, Object> result = messageService.sendMessage(VALID_TOKEN, RECEIVER, "Hello", null, USER_AGENT);
 
         assertEquals(2, result.get("status"));
         verify(messageRepository, times(1)).save(any(Message.class));
     }
 
-    // ✅ Test gửi tin nhắn khi không phải bạn bè
+    // ✅ Test gửi tin nhắn khi không phải bạn bè với userAgent
     @Test
-    void testSendMessageNotFriend() throws IOException {
+    void testSendMessageNotFriendWithUserAgent() throws IOException {
         User receiver = createUser(RECEIVER, "[\"charlie\"]");
 
-        when(jwtUtil.validateToken(anyString())).thenReturn(SENDER);
+        when(jwtUtil.validateToken(anyString(), eq(USER_AGENT))).thenReturn(SENDER); // Validate token với userAgent
         when(userRepository.findById(RECEIVER)).thenReturn(Optional.of(receiver));
 
-        Map<String, Object> result = messageService.sendMessage(VALID_TOKEN, RECEIVER, "Hello", null);
+        Map<String, Object> result = messageService.sendMessage(VALID_TOKEN, RECEIVER, "Hello", null, USER_AGENT);
 
         assertEquals(3, result.get("status"));
         verify(messageRepository, never()).save(any());
     }
 
-    // ✅ Test gửi file thành công
+    // ✅ Test gửi file thành công với userAgent
     @Test
-    void testSendFileSuccess() throws IOException {
+    void testSendFileSuccessWithUserAgent() throws IOException {
         User receiver = createUser(RECEIVER, "[\"alice\"]");
         MockMultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", "file content".getBytes());
 
-        when(jwtUtil.validateToken(anyString())).thenReturn(SENDER);
+        when(jwtUtil.validateToken(anyString(), eq(USER_AGENT))).thenReturn(SENDER); // Validate token với userAgent
         when(userRepository.findById(RECEIVER)).thenReturn(Optional.of(receiver));
         when(onlineUserService.getWaitingQueue(RECEIVER)).thenReturn(null);
 
-        Map<String, Object> result = messageService.sendMessage(VALID_TOKEN, RECEIVER, null, file);
+        Map<String, Object> result = messageService.sendMessage(VALID_TOKEN, RECEIVER, null, file, USER_AGENT);
 
         assertEquals(2, result.get("status"));
         verify(messageRepository, times(1)).save(any(Message.class));
     }
 
-    // ✅ Test get file hợp lệ
+    // ✅ Test get file hợp lệ với userAgent
     @Test
-    void testGetFileAuthorized() throws IOException {
+    void testGetFileAuthorizedWithUserAgent() throws IOException {
         Message message = new Message(
                 1L,
                 SENDER,
@@ -117,17 +118,17 @@ class MessageServiceImplTest {
                 true
         );
 
-        when(jwtUtil.validateToken(anyString())).thenReturn(RECEIVER);
+        when(jwtUtil.validateToken(anyString(), eq(USER_AGENT))).thenReturn(RECEIVER); // Validate token với userAgent
         when(messageRepository.findByReceiver(RECEIVER)).thenReturn(List.of(message));
 
-        Resource res = messageService.getFile(VALID_TOKEN, "test.txt");
+        Resource res = messageService.getFile(VALID_TOKEN, "test.txt", USER_AGENT);
 
         assertNotNull(res);
     }
 
-    // ✅ Test get file khi không có quyền
+    // ✅ Test get file khi không có quyền với userAgent
     @Test
-    void testGetFileUnauthorized() {
+    void testGetFileUnauthorizedWithUserAgent() {
         Message message = new Message(
                 1L,
                 SENDER,
@@ -138,10 +139,10 @@ class MessageServiceImplTest {
                 true
         );
 
-        when(jwtUtil.validateToken(anyString())).thenReturn("someoneElse");
+        when(jwtUtil.validateToken(anyString(), eq(USER_AGENT))).thenReturn("someoneElse"); // Validate token với userAgent
         when(messageRepository.findByReceiver("someoneElse")).thenReturn(List.of(message));
 
         assertThrows(SecurityException.class, () ->
-                messageService.getFile(VALID_TOKEN, "test.txt"));
+                messageService.getFile(VALID_TOKEN, "test.txt", USER_AGENT));
     }
 }

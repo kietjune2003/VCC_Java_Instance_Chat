@@ -31,6 +31,7 @@ class AuthServiceImplTest {
     private final String VALID_PASSWORD = "password123";
     private final String ACCESS_TOKEN = "access-token";
     private final String REFRESH_TOKEN = "refresh-token";
+    private final String USER_AGENT = "Mozilla/5.0";
 
     @BeforeEach
     void setUp() {
@@ -38,20 +39,20 @@ class AuthServiceImplTest {
     }
 
     /**
-     * ✅ Test đăng nhập thành công
+     * ✅ Test đăng nhập thành công với userAgent
      */
     @Test
-    void testLoginSuccess() {
+    void testLoginSuccessWithUserAgent() {
         User mockUser = User.builder()
                 .username(VALID_USERNAME)
                 .passwordHash(VALID_PASSWORD)
                 .build();
 
         when(userRepository.findById(VALID_USERNAME)).thenReturn(Optional.of(mockUser));
-        when(jwtUtil.generateAccessToken(VALID_USERNAME)).thenReturn(ACCESS_TOKEN);
-        when(jwtUtil.generateRefreshToken(VALID_USERNAME)).thenReturn(REFRESH_TOKEN);
+        when(jwtUtil.generateAccessToken(VALID_USERNAME, USER_AGENT)).thenReturn(ACCESS_TOKEN);
+        when(jwtUtil.generateRefreshToken(VALID_USERNAME, USER_AGENT)).thenReturn(REFRESH_TOKEN);
 
-        ResponseEntity<?> response = authService.login(VALID_USERNAME, VALID_PASSWORD);
+        ResponseEntity<?> response = authService.login(VALID_USERNAME, VALID_PASSWORD, USER_AGENT);
 
         assertEquals(200, response.getStatusCodeValue());
         Map<String, String> tokens = (Map<String, String>) response.getBody();
@@ -73,7 +74,7 @@ class AuthServiceImplTest {
 
         when(userRepository.findById(VALID_USERNAME)).thenReturn(Optional.of(mockUser));
 
-        ResponseEntity<?> response = authService.login(VALID_USERNAME, VALID_PASSWORD);
+        ResponseEntity<?> response = authService.login(VALID_USERNAME, VALID_PASSWORD, USER_AGENT);
         assertEquals(401, response.getStatusCodeValue());
         assertEquals("Invalid credentials", response.getBody());
     }
@@ -85,20 +86,20 @@ class AuthServiceImplTest {
     void testLoginUserNotFound() {
         when(userRepository.findById(VALID_USERNAME)).thenReturn(Optional.empty());
 
-        ResponseEntity<?> response = authService.login(VALID_USERNAME, VALID_PASSWORD);
+        ResponseEntity<?> response = authService.login(VALID_USERNAME, VALID_PASSWORD, USER_AGENT);
         assertEquals(401, response.getStatusCodeValue());
         assertEquals("Invalid credentials", response.getBody());
     }
 
     /**
-     * 🔄 Test refresh token hợp lệ
+     * 🔄 Test refresh token hợp lệ với userAgent
      */
     @Test
-    void testRefreshTokenSuccess() {
-        when(jwtUtil.validateToken(REFRESH_TOKEN)).thenReturn(VALID_USERNAME);
-        when(jwtUtil.generateAccessToken(VALID_USERNAME)).thenReturn(ACCESS_TOKEN);
+    void testRefreshTokenSuccessWithUserAgent() {
+        when(jwtUtil.validateToken(REFRESH_TOKEN, USER_AGENT)).thenReturn(VALID_USERNAME);
+        when(jwtUtil.generateAccessToken(VALID_USERNAME, USER_AGENT)).thenReturn(ACCESS_TOKEN);
 
-        ResponseEntity<?> response = authService.refreshToken(REFRESH_TOKEN);
+        ResponseEntity<?> response = authService.refreshToken(REFRESH_TOKEN, USER_AGENT);
         assertEquals(200, response.getStatusCodeValue());
         assertEquals(ACCESS_TOKEN, ((Map<String, String>) response.getBody()).get("accessToken"));
     }
@@ -108,21 +109,21 @@ class AuthServiceImplTest {
      */
     @Test
     void testRefreshTokenInvalid() {
-        when(jwtUtil.validateToken(REFRESH_TOKEN)).thenThrow(new JwtException("expired"));
+        when(jwtUtil.validateToken(REFRESH_TOKEN, USER_AGENT)).thenThrow(new JwtException("expired"));
 
-        ResponseEntity<?> response = authService.refreshToken(REFRESH_TOKEN);
+        ResponseEntity<?> response = authService.refreshToken(REFRESH_TOKEN, USER_AGENT);
         assertEquals(401, response.getStatusCodeValue());
         assertEquals("Refresh token invalid or expired", response.getBody());
     }
 
     /**
-     * 🔐 Test truy cập tài nguyên được bảo vệ
+     * 🔐 Test truy cập tài nguyên được bảo vệ với userAgent
      */
     @Test
-    void testGetProtectedResource() {
-        when(jwtUtil.validateToken("valid-token")).thenReturn(VALID_USERNAME);
+    void testGetProtectedResourceWithUserAgent() {
+        when(jwtUtil.validateToken("valid-token", USER_AGENT)).thenReturn(VALID_USERNAME);
 
-        ResponseEntity<?> response = authService.getProtectedResource("Bearer valid-token");
+        ResponseEntity<?> response = authService.getProtectedResource("Bearer valid-token", USER_AGENT);
         assertEquals(200, response.getStatusCodeValue());
         assertEquals("Hello " + VALID_USERNAME, response.getBody());
     }
