@@ -39,7 +39,7 @@ Client (React hoặc Postman) <--> Spring Boot API <--> MySQL
 
 ```bash
 # Bước 1: Clone dự án
-git clone https://github.com/yourusername/chatapp.git
+git clone https://github.com/kietjune2003/VCC_Java_Instance_Chat.git
 cd chatapp
 
 # Bước 2: Cấu hình database trong application.properties
@@ -95,8 +95,8 @@ java -jar target/chatapp-1.0-SNAPSHOT.jar
 
 ## 👨‍💻 Tác giả
 
-- **Tên**: Kiệt
-- **Email**: your.email@example.com
-- **Github**: [https://github.com/yourusername](https://github.com/yourusername)
+- **Tên**: kietjune2003
+- **Email**: k.code.2003@gmail.com
+- **Github**: [https://github.com/kietjune2003](https://github.com/kietjune2003)
 
 > Nếu bạn thấy dự án hữu ích, hãy ⭐️ ủng hộ nhé!
