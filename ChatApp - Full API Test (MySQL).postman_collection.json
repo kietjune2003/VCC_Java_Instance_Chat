@@ -203,6 +203,164 @@
 				"header": []
 			},
 			"response": []
+		},
+		{
+			"name": "8. Register - Charlie",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"username\": \"charlie\",\n  \"password\": \"password123\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/register",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"register"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "9. Send Friend Request - Alice to Bob",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "{{accessTokenAlice}}"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:8080/api/friends/request?to=bob",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"friends",
+						"request"
+					],
+					"query": [
+						{
+							"key": "to",
+							"value": "bob"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "10. Accept Friend Request - Bob accepts Alice",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "{{accessTokenBob}}"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:8080/api/friends/respond?from=alice&accepted=true",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"friends",
+						"respond"
+					],
+					"query": [
+						{
+							"key": "from",
+							"value": "alice"
+						},
+						{
+							"key": "accepted",
+							"value": "true"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "12. Logout - Alice",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "{{accessTokenAlice}}"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:8080/api/logout",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"logout"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "11. Decline Friend Request - Bob declines Charlie",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "{{accessTokenBob}}"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:8080/api/friends/respond?from=charlie&accepted=false",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"friends",
+						"respond"
+					],
+					"query": [
+						{
+							"key": "from",
+							"value": "charlie"
+						},
+						{
+							"key": "accepted",
+							"value": "false"
+						}
+					]
+				}
+			},
+			"response": []
 		}
 	],
 	"variable": [

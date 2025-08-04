@@ -4,6 +4,8 @@ import org.springframework.http.ResponseEntity;
 
 public interface AuthService {
 
+    ResponseEntity<?> register(String username, String password);
+
     /**
      * API đăng nhập, trả về JWT access token và refresh token.
      * @param username Tên đăng nhập của người dùng
@@ -28,4 +30,6 @@ public interface AuthService {
      * @return ResponseEntity chứa tài nguyên bảo vệ
      */
     ResponseEntity<?> getProtectedResource(String authHeader, String userAgent);
+
+    ResponseEntity<?> logout(String authHeader, String userAgent);
 }

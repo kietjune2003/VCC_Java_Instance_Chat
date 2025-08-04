@@ -49,4 +49,92 @@ public class FriendServiceImpl implements FriendService {
 
         return friends;
     }
+    /**
+     * ✅ Gửi lời mời kết bạn
+     */
+    @Override
+    public String sendFriendRequest(String authHeader, String userAgent, String toUsername) throws Exception {
+        String token = authHeader.replace("Bearer", "").trim();
+        String fromUsername = jwtUtil.validateToken(token, userAgent);
+
+        if (fromUsername.equals(toUsername)) {
+            throw new IllegalArgumentException("You cannot send a friend request to yourself");
+        }
+
+        User toUser = userRepository.findById(toUsername).orElseThrow(() ->
+                new RuntimeException("User '" + toUsername + "' not found"));
+
+        List<String> pendingRequests = parseJsonList(toUser.getFriendRequests());
+        if (pendingRequests.contains(fromUsername)) {
+            return "Friend request already sent.";
+        }
+
+        pendingRequests.add(fromUsername);
+        toUser.setFriendRequests(toJsonString(pendingRequests));
+        userRepository.save(toUser);
+
+        log.info("User '{}' sent a friend request to '{}'", fromUsername, toUsername);
+        return "Friend request sent.";
+    }
+
+    /**
+     * ✅ Phản hồi lời mời kết bạn
+     */
+    @Override
+    public String respondToFriendRequest(String authHeader, String userAgent, String fromUsername, boolean accepted) throws Exception {
+        String token = authHeader.replace("Bearer", "").trim();
+        String toUsername = jwtUtil.validateToken(token, userAgent); // người nhận lời mời
+
+        if (toUsername.equals(fromUsername)) {
+            throw new IllegalArgumentException("Invalid friend request.");
+        }
+
+        // Lấy người nhận và người gửi
+        User toUser = userRepository.findById(toUsername).orElseThrow(() -> new RuntimeException("User not found"));
+        User fromUser = userRepository.findById(fromUsername).orElseThrow(() -> new RuntimeException("Sender not found"));
+
+        List<String> pendingRequests = parseJsonList(toUser.getFriendRequests());
+        if (!pendingRequests.contains(fromUsername)) {
+            return "No friend request found.";
+        }
+
+        pendingRequests.remove(fromUsername);
+        toUser.setFriendRequests(toJsonString(pendingRequests));
+
+        if (accepted) {
+            List<String> toFriends = parseJsonList(toUser.getFriendsJson());
+            List<String> fromFriends = parseJsonList(fromUser.getFriendsJson());
+
+            if (!toFriends.contains(fromUsername)) {
+                toFriends.add(fromUsername);
+            }
+
+            if (!fromFriends.contains(toUsername)) {
+                fromFriends.add(toUsername);
+            }
+
+            toUser.setFriendsJson(toJsonString(toFriends));
+            fromUser.setFriendsJson(toJsonString(fromFriends));
+
+            userRepository.save(fromUser);
+            userRepository.save(toUser);
+
+            log.info("User '{}' accepted friend request from '{}'", toUsername, fromUsername);
+            return "Friend request accepted.";
+        } else {
+            userRepository.save(toUser);
+            log.info("User '{}' declined friend request from '{}'", toUsername, fromUsername);
+            return "Friend request declined.";
+        }
+    }
+
+    private List<String> parseJsonList(String json) throws Exception {
+        if (json == null || json.isEmpty()) return new java.util.ArrayList<>();
+        return objectMapper.readValue(json, new TypeReference<>() {});
+    }
+
+    private String toJsonString(List<String> list) throws Exception {
+        return objectMapper.writeValueAsString(list);
+    }
+
 }

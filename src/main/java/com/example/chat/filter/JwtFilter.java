@@ -1,7 +1,7 @@
 package com.example.chat.filter;
 
-import com.example.chat.entity.User;
-import com.example.chat.repository.UserRepository;
+import com.example.chat.entity.UserToken;
+import com.example.chat.repository.UserTokenRepository;
 import com.example.chat.util.JwtUtil;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -13,15 +13,22 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 
 @Component
 @RequiredArgsConstructor
-@Slf4j // 👉 Ghi log bằng Slf4j
+@Slf4j
 public class JwtFilter implements Filter {
 
     private final JwtUtil jwtUtil;
-    private final UserRepository userRepository;
+    private final UserTokenRepository userTokenRepository;
 
+    /**
+     * ✅ Bộ lọc JWT để xác thực mỗi request gửi vào hệ thống
+     * Nếu token hợp lệ → cho qua.
+     * Nếu token hết hạn nhưng refresh token còn hạn → cấp lại access token mới.
+     * Nếu token không hợp lệ → trả về lỗi 401.
+     */
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
@@ -29,70 +36,70 @@ public class JwtFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         String header = httpRequest.getHeader("Authorization");
 
-        // 👉 Nếu có header Authorization bắt đầu bằng Bearer
+        // ✅ Kiểm tra có Authorization header dạng Bearer không
         if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7); // Cắt bỏ "Bearer "
-
-            // Lấy thông tin User-Agent từ header request
-            String userAgent = httpRequest.getHeader("User-Agent");
+            String token = header.substring(7); // Loại bỏ "Bearer "
+            String userAgent = httpRequest.getHeader("User-Agent"); // Lấy thông tin thiết bị
 
             try {
-                // ✅ Kiểm tra token access có hợp lệ không và kiểm tra userAgent
+                // ✅ Xác thực access token và kiểm tra khớp userAgent
                 String username = jwtUtil.validateToken(token, userAgent);
-                log.debug("JWT validated successfully for user '{}' with matching userAgent", username);
+                log.debug("JWT validated for user '{}' and userAgent matched", username);
 
-                // Chuyển tiếp request nếu token hợp lệ
+                // ✅ Token hợp lệ → tiếp tục filter chain
                 chain.doFilter(request, response);
                 return;
 
             } catch (ExpiredJwtException e) {
-                // ⏰ Token đã hết hạn
+                // ⏰ Access token đã hết hạn
                 String username = e.getClaims().getSubject();
-                log.warn("Access token expired for user '{}'", username);
+                log.warn("Access token expired for '{}'", username);
 
-                // Tìm người dùng trong cơ sở dữ liệu
-                User user = userRepository.findById(username).orElse(null);
-
-                // 🔁 Kiểm tra và dùng refresh token nếu còn hạn
-                if (user != null && user.getRefreshToken() != null) {
-                    boolean refreshTokenValid = !jwtUtil.isTokenExpired(user.getRefreshToken());
-
-                    if (refreshTokenValid) {
-                        // Tạo lại access token mới từ refresh token
-                        String newAccessToken = jwtUtil.generateAccessToken(username, userAgent);
-                        user.setAccessToken(newAccessToken);
-                        userRepository.save(user);
-
-                        log.info("New access token issued via refresh token for '{}'", username);
-
-                        // Đưa token mới vào header response
-                        HttpServletResponse httpResponse = (HttpServletResponse) response;
-                        httpResponse.setHeader("New-Access-Token", newAccessToken);
-
-                        // Tiếp tục filter chain với token mới
-                        chain.doFilter(request, response);
-                        return;
-                    } else {
-                        log.warn("Refresh token expired for '{}'", username);
-                    }
-                } else {
-                    log.warn("User '{}' not found or no refresh token", username);
+                // 🔍 Tìm access token trong database (bảng user_tokens)
+                UserToken userToken = userTokenRepository.findByAccessToken(token).orElse(null);
+                if (userToken == null) {
+                    log.warn("Access token not found in DB");
+                    ((HttpServletResponse) response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
+                    return;
                 }
 
-                // Trả về lỗi nếu refresh token đã hết hạn
-                ((HttpServletResponse) response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Refresh token expired");
-                return;
+                // 🧪 Kiểm tra refresh token còn hạn không
+                if (userToken.getRefreshTokenExpiresAt().isAfter(LocalDateTime.now())) {
+                    // ✅ Refresh token còn hạn → cấp lại access token mới
+                    String newAccessToken = jwtUtil.generateAccessToken(username, userAgent);
+
+                    // 🔁 Cập nhật token mới vào DB
+                    userToken.setAccessToken(newAccessToken);
+                    userToken.setTokenCreatedAt(LocalDateTime.now());
+                    userToken.setTokenExpiresAt(LocalDateTime.now().plusMinutes(10));
+                    userTokenRepository.save(userToken);
+
+                    log.info("Issued new access token for user '{}'", username);
+
+                    // ✅ Đưa access token mới vào response header
+                    HttpServletResponse httpResponse = (HttpServletResponse) response;
+                    httpResponse.setHeader("New-Access-Token", newAccessToken);
+
+                    // Cho phép đi tiếp filter chain
+                    chain.doFilter(request, response);
+                    return;
+                } else {
+                    // ❌ Refresh token cũng hết hạn → bắt đăng nhập lại
+                    log.warn("Refresh token expired for '{}'", username);
+                    ((HttpServletResponse) response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Refresh token expired");
+                    return;
+                }
 
             } catch (JwtException e) {
-                // ❌ Token không hợp lệ
+                // ❌ Access token không hợp lệ (giả mạo, sai chữ ký, sai user-agent...)
                 log.error("Invalid JWT token: {}", e.getMessage());
                 ((HttpServletResponse) response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
                 return;
             }
         }
 
-        // 🛡️ Nếu không có token → không can thiệp, chuyển sang filter kế tiếp (có thể là public API)
-        log.debug("No Authorization header found, continuing without authentication");
+        // ⛔ Không có Authorization header → cho qua (có thể là request public)
+        log.debug("No Authorization header found, continuing filter chain");
         chain.doFilter(request, response);
     }
 }

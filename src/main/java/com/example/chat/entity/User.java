@@ -3,8 +3,6 @@ package com.example.chat.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
-
 @Entity
 @Table(name = "users")
 @Data
@@ -18,14 +16,8 @@ public class User {
     private String passwordHash;
 
     @Column(columnDefinition = "TEXT")
-    private String friendsJson; // JSON danh sách bạn bè
-    @Column(length = 512)
-    private String accessToken;
-    private LocalDateTime tokenCreatedAt;
-    private LocalDateTime tokenExpiresAt;
+    private String friendsJson;
+    @Column(columnDefinition = "TEXT")
+    private String friendRequests; // JSON danh sách lời mời kết bạn (danh sách username)
 
-    @Column(length = 512)
-    private String refreshToken;
-
-    private LocalDateTime refreshTokenExpiresAt;
 }

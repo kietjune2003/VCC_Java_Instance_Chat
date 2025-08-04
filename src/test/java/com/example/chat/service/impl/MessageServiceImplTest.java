@@ -46,26 +46,21 @@ class MessageServiceImplTest {
         messageService = new MessageServiceImpl(jwtUtil, userRepository, messageRepository, onlineUserService);
     }
 
-    // ✅ Helper method tạo User cho test
+    // ✅ Tạo user test với friendsJson
     private User createUser(String username, String friendsJson) {
-        return new User(
-                username,
-                "hashedPassword",
-                friendsJson,
-                null,
-                null,
-                null,
-                null,
-                null
-        );
+        return User.builder()
+                .username(username)
+                .passwordHash("hashedPassword")
+                .friendsJson(friendsJson)
+                .build();
     }
 
-    // ✅ Test gửi tin nhắn text thành công (người nhận không online) với userAgent
+    // ✅ Test gửi tin nhắn text khi người nhận không online
     @Test
     void testSendTextMessageSuccessWithUserAgent() throws IOException {
         User receiver = createUser(RECEIVER, "[\"alice\"]");
 
-        when(jwtUtil.validateToken(anyString(), eq(USER_AGENT))).thenReturn(SENDER); // Validate token với userAgent
+        when(jwtUtil.validateToken(anyString(), eq(USER_AGENT))).thenReturn(SENDER);
         when(userRepository.findById(RECEIVER)).thenReturn(Optional.of(receiver));
         when(onlineUserService.getWaitingQueue(RECEIVER)).thenReturn(null);
 
@@ -75,12 +70,12 @@ class MessageServiceImplTest {
         verify(messageRepository, times(1)).save(any(Message.class));
     }
 
-    // ✅ Test gửi tin nhắn khi không phải bạn bè với userAgent
+    // ✅ Test gửi tin nhắn khi không phải bạn bè
     @Test
     void testSendMessageNotFriendWithUserAgent() throws IOException {
         User receiver = createUser(RECEIVER, "[\"charlie\"]");
 
-        when(jwtUtil.validateToken(anyString(), eq(USER_AGENT))).thenReturn(SENDER); // Validate token với userAgent
+        when(jwtUtil.validateToken(anyString(), eq(USER_AGENT))).thenReturn(SENDER);
         when(userRepository.findById(RECEIVER)).thenReturn(Optional.of(receiver));
 
         Map<String, Object> result = messageService.sendMessage(VALID_TOKEN, RECEIVER, "Hello", null, USER_AGENT);
@@ -89,13 +84,13 @@ class MessageServiceImplTest {
         verify(messageRepository, never()).save(any());
     }
 
-    // ✅ Test gửi file thành công với userAgent
+    // ✅ Test gửi file thành công
     @Test
     void testSendFileSuccessWithUserAgent() throws IOException {
         User receiver = createUser(RECEIVER, "[\"alice\"]");
         MockMultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", "file content".getBytes());
 
-        when(jwtUtil.validateToken(anyString(), eq(USER_AGENT))).thenReturn(SENDER); // Validate token với userAgent
+        when(jwtUtil.validateToken(anyString(), eq(USER_AGENT))).thenReturn(SENDER);
         when(userRepository.findById(RECEIVER)).thenReturn(Optional.of(receiver));
         when(onlineUserService.getWaitingQueue(RECEIVER)).thenReturn(null);
 
@@ -105,28 +100,37 @@ class MessageServiceImplTest {
         verify(messageRepository, times(1)).save(any(Message.class));
     }
 
-    // ✅ Test get file hợp lệ với userAgent
+    // ✅ Test lấy file thành công khi đúng người nhận
     @Test
     void testGetFileAuthorizedWithUserAgent() throws IOException {
+        // Tạo file test.txt giả trong thư mục storage
+        String filename = "test.txt";
+        String storagePath = "storage";
+        java.nio.file.Path filePath = java.nio.file.Paths.get(storagePath, filename);
+        java.nio.file.Files.createDirectories(filePath.getParent());
+        java.nio.file.Files.writeString(filePath, "dummy content");
+
         Message message = new Message(
                 1L,
                 SENDER,
                 RECEIVER,
-                "/api/file/test.txt",
+                "/api/file/" + filename,
                 true,
                 LocalDateTime.now(),
                 true
         );
 
-        when(jwtUtil.validateToken(anyString(), eq(USER_AGENT))).thenReturn(RECEIVER); // Validate token với userAgent
+        when(jwtUtil.validateToken(anyString(), eq(USER_AGENT))).thenReturn(RECEIVER);
         when(messageRepository.findByReceiver(RECEIVER)).thenReturn(List.of(message));
 
-        Resource res = messageService.getFile(VALID_TOKEN, "test.txt", USER_AGENT);
+        Resource res = messageService.getFile(VALID_TOKEN, filename, USER_AGENT);
 
         assertNotNull(res);
+        assertTrue(res.exists()); // Kiểm tra resource tồn tại
     }
 
-    // ✅ Test get file khi không có quyền với userAgent
+
+    // ✅ Test lấy file khi không có quyền truy cập
     @Test
     void testGetFileUnauthorizedWithUserAgent() {
         Message message = new Message(
@@ -139,7 +143,7 @@ class MessageServiceImplTest {
                 true
         );
 
-        when(jwtUtil.validateToken(anyString(), eq(USER_AGENT))).thenReturn("someoneElse"); // Validate token với userAgent
+        when(jwtUtil.validateToken(anyString(), eq(USER_AGENT))).thenReturn("someoneElse");
         when(messageRepository.findByReceiver("someoneElse")).thenReturn(List.of(message));
 
         assertThrows(SecurityException.class, () ->
